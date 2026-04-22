@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kandinsky — Circles in a Circle · Interactive</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Circles in a Circle</h1>
+      <p>Wassily Kandinsky, 1923 &mdash; Interactive Reconstruction</p>
+    </header>
+
+    <div id="canvas-container">
+      <canvas id="kandinsky-canvas" width="800" height="800"></canvas>
+    </div>
+
+    <div id="controls">
+      <div id="mode-selector" role="group" aria-label="Interaction mode">
+        <button class="mode-btn active" data-mode="sound" title="Click circles to hear their note">Sound</button>
+        <button class="mode-btn" data-mode="gravity" title="Click circles to launch them with gravity">Gravity</button>
+        <button class="mode-btn" data-mode="overlay" title="Click circles to apply a colour wash">Overlay</button>
+      </div>
+      <p id="info-panel" aria-live="polite">Click a circle to interact</p>
+    </div>
+  </div>
+
+  <script src="js/circles.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/interactions.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
