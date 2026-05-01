@@ -1,16 +1,20 @@
 /* ─────────────────────────────────────────────────────────────────
-   interactions.js  —  initial: hitbox detection and cursor feedback
+   interactions.js  —  update: audio + physics wired, no overlay/touch yet
    ───────────────────────────────────────────────────────────────── */
 
 class InteractionManager {
-  constructor(canvas, circles, renderer) {
+  constructor(canvas, circles, renderer, audio, physics) {
     this.canvas   = canvas;
     this.circles  = circles;
     this.renderer = renderer;
+    this.audio    = audio;
+    this.physics  = physics;
+
     this.mode     = 'sound';
     this.hovered  = null;
     this.selected = null;
     this.dragged  = null;
+
     this._bind();
   }
 
@@ -25,10 +29,17 @@ class InteractionManager {
 
   _onMove(e) {
     const { x, y } = this._toCanvas(e.clientX, e.clientY);
+
+    if (this.dragged) {
+      this.physics.moveDrag(this.dragged, x, y);
+      return;
+    }
+
     const hit = this._hit(x, y);
     if (hit !== this.hovered) {
       this.hovered = hit;
       this.canvas.style.cursor = hit ? 'grab' : 'default';
+      if (hit && this.audio.initialized) this.audio.playHover(hit);
     }
   }
 
@@ -37,16 +48,35 @@ class InteractionManager {
     const { x, y } = this._toCanvas(e.clientX, e.clientY);
     const hit = this._hit(x, y);
     if (!hit) return;
+
+    this.audio.resume();
+    this.audio.init().then(() => {
+      if (this.mode !== 'gravity') this.audio.playCircle(hit);
+      if (this.mode === 'gravity') this.physics.impulse(hit);
+    });
+
     this.selected = hit;
+    this.physics.startDrag(hit, x, y);
+    this.dragged = hit;
     this.canvas.style.cursor = 'grabbing';
     this._updateInfo(hit);
   }
 
   _onUp() {
-    this.canvas.style.cursor = this.hovered ? 'grab' : 'default';
+    if (this.dragged) {
+      this.physics.endDrag(this.dragged);
+      this.dragged = null;
+      this.canvas.style.cursor = this.hovered ? 'grab' : 'default';
+    }
   }
 
-  _onLeave() { this.hovered = null; }
+  _onLeave() {
+    this.hovered = null;
+    if (this.dragged) {
+      this.physics.endDrag(this.dragged);
+      this.dragged = null;
+    }
+  }
 
   _toCanvas(cx, cy) {
     const rect = this.canvas.getBoundingClientRect();
