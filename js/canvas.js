@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────
-   canvas.js  —  initial: background, lines, and plain circle drawing
+   canvas.js  —  update: add colour overlay blend-mode support
    ───────────────────────────────────────────────────────────────── */
 
 class KandinskyRenderer {
@@ -9,6 +9,11 @@ class KandinskyRenderer {
     this.W      = 800;
     this.H      = 800;
     this.main   = { x: 400, y: 400, r: 375 };
+
+    /* Overlay state mutated by InteractionManager */
+    this.overlayCircle = null;
+    this.overlayAlpha  = 0;
+
     this._applySize();
     window.addEventListener('resize', () => this._applySize());
   }
@@ -121,6 +126,26 @@ class KandinskyRenderer {
     ctx.fillStyle   = L > 0.52 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.85)';
     ctx.globalAlpha = 0.72;
     ctx.fillText(circle.note, circle.x, circle.y);
+    ctx.restore();
+  }
+
+  /* Colour-blend overlay wash across the whole composition */
+  drawOverlay() {
+    if (!this.overlayCircle || this.overlayAlpha <= 0) return;
+    const { ctx } = this;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(this.main.x, this.main.y, this.main.r - 5, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.globalCompositeOperation = this.overlayCircle.overlay;
+    ctx.globalAlpha              = this.overlayAlpha * 0.38;
+    ctx.fillStyle                = this.overlayCircle.color;
+    ctx.fillRect(0, 0, this.W, this.H);
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha              = 1;
     ctx.restore();
   }
 }

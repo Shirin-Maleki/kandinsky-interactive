@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────
-   interactions.js  —  update: audio + physics wired, no overlay/touch yet
+   interactions.js  —  update: add overlay mode, no touch yet
    ───────────────────────────────────────────────────────────────── */
 
 class InteractionManager {
@@ -14,6 +14,8 @@ class InteractionManager {
     this.hovered  = null;
     this.selected = null;
     this.dragged  = null;
+
+    this._overlayTimer = null;
 
     this._bind();
   }
@@ -53,6 +55,7 @@ class InteractionManager {
     this.audio.init().then(() => {
       if (this.mode !== 'gravity') this.audio.playCircle(hit);
       if (this.mode === 'gravity') this.physics.impulse(hit);
+      if (this.mode === 'overlay') this._flashOverlay(hit);
     });
 
     this.selected = hit;
@@ -76,6 +79,29 @@ class InteractionManager {
       this.physics.endDrag(this.dragged);
       this.dragged = null;
     }
+  }
+
+  _flashOverlay(circle) {
+    if (this._overlayTimer) clearInterval(this._overlayTimer);
+    this.renderer.overlayCircle = circle;
+    this.renderer.overlayAlpha  = 0;
+
+    let alpha = 0, ascending = true;
+    this._overlayTimer = setInterval(() => {
+      if (ascending) {
+        alpha += 0.055;
+        if (alpha >= 1) { alpha = 1; ascending = false; }
+      } else {
+        alpha -= 0.022;
+        if (alpha <= 0) {
+          alpha = 0;
+          clearInterval(this._overlayTimer);
+          this._overlayTimer          = null;
+          this.renderer.overlayCircle = null;
+        }
+      }
+      this.renderer.overlayAlpha = alpha;
+    }, 28);
   }
 
   _toCanvas(cx, cy) {
