@@ -1,5 +1,8 @@
 /* ─────────────────────────────────────────────────────────────────
-   interactions.js  —  update: add overlay mode, no touch yet
+   interactions.js
+   Mouse and touch event handling.  Translates raw pointer events
+   into intents (click, hover, drag, release) and delegates to the
+   audio and physics subsystems.
    ───────────────────────────────────────────────────────────────── */
 
 class InteractionManager {
@@ -10,19 +13,22 @@ class InteractionManager {
     this.audio    = audio;
     this.physics  = physics;
 
-    this.mode     = 'sound';
-    this.hovered  = null;
-    this.selected = null;
-    this.dragged  = null;
+    this.mode      = 'sound'; /* 'sound' | 'gravity' | 'overlay' */
+    this.hovered   = null;
+    this.selected  = null;
+    this.dragged   = null;
 
     this._overlayTimer = null;
 
-    this._bind();
+    this._bindMouse();
+    this._bindTouch();
   }
 
   setMode(m) { this.mode = m; }
 
-  _bind() {
+  /* ── Mouse ──────────────────────────────────────────────────── */
+
+  _bindMouse() {
     this.canvas.addEventListener('mousemove',  this._onMove.bind(this));
     this.canvas.addEventListener('mousedown',  this._onDown.bind(this));
     this.canvas.addEventListener('mouseup',    this._onUp.bind(this));
@@ -41,7 +47,10 @@ class InteractionManager {
     if (hit !== this.hovered) {
       this.hovered = hit;
       this.canvas.style.cursor = hit ? 'grab' : 'default';
-      if (hit && this.audio.initialized) this.audio.playHover(hit);
+      if (hit) {
+        /* Lazy-init audio on first hover after user gesture has occurred */
+        if (this.audio.initialized) this.audio.playHover(hit);
+      }
     }
   }
 
@@ -81,12 +90,59 @@ class InteractionManager {
     }
   }
 
+  /* ── Touch ──────────────────────────────────────────────────── */
+
+  _bindTouch() {
+    const opts = { passive: false };
+    this.canvas.addEventListener('touchstart', this._onTouchStart.bind(this), opts);
+    this.canvas.addEventListener('touchmove',  this._onTouchMove.bind(this),  opts);
+    this.canvas.addEventListener('touchend',   this._onTouchEnd.bind(this));
+  }
+
+  _onTouchStart(e) {
+    e.preventDefault();
+    const t = e.touches[0];
+    const { x, y } = this._toCanvas(t.clientX, t.clientY);
+    const hit = this._hit(x, y);
+    if (!hit) return;
+
+    this.audio.resume();
+    this.audio.init().then(() => {
+      this.audio.playCircle(hit);
+      if (this.mode === 'gravity') this.physics.impulse(hit);
+      if (this.mode === 'overlay') this._flashOverlay(hit);
+    });
+
+    this.selected = hit;
+    this.physics.startDrag(hit, x, y);
+    this.dragged = hit;
+    this._updateInfo(hit);
+  }
+
+  _onTouchMove(e) {
+    e.preventDefault();
+    if (!this.dragged) return;
+    const t = e.touches[0];
+    const { x, y } = this._toCanvas(t.clientX, t.clientY);
+    this.physics.moveDrag(this.dragged, x, y);
+  }
+
+  _onTouchEnd() {
+    if (this.dragged) {
+      this.physics.endDrag(this.dragged);
+      this.dragged = null;
+    }
+  }
+
+  /* ── Overlay flash ──────────────────────────────────────────── */
+
   _flashOverlay(circle) {
     if (this._overlayTimer) clearInterval(this._overlayTimer);
     this.renderer.overlayCircle = circle;
     this.renderer.overlayAlpha  = 0;
 
-    let alpha = 0, ascending = true;
+    let alpha     = 0;
+    let ascending = true;
     this._overlayTimer = setInterval(() => {
       if (ascending) {
         alpha += 0.055;
@@ -96,7 +152,7 @@ class InteractionManager {
         if (alpha <= 0) {
           alpha = 0;
           clearInterval(this._overlayTimer);
-          this._overlayTimer          = null;
+          this._overlayTimer       = null;
           this.renderer.overlayCircle = null;
         }
       }
@@ -104,14 +160,17 @@ class InteractionManager {
     }, 28);
   }
 
-  _toCanvas(cx, cy) {
+  /* ── Helpers ────────────────────────────────────────────────── */
+
+  _toCanvas(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
     return {
-      x: (cx - rect.left) * (this.renderer.W / rect.width),
-      y: (cy - rect.top)  * (this.renderer.H / rect.height),
+      x: (clientX - rect.left) * (this.renderer.W / rect.width),
+      y: (clientY - rect.top)  * (this.renderer.H / rect.height),
     };
   }
 
+  /* Iterate top-to-bottom (last element rendered = topmost visually) */
   _hit(x, y) {
     for (let i = this.circles.length - 1; i >= 0; i--) {
       const c  = this.circles[i];
