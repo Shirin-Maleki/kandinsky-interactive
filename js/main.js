@@ -22,15 +22,6 @@
 
   const interactions = new InteractionManager(canvas, circles, renderer, audio, physics);
 
-  /* Mode-button wiring */
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      interactions.setMode(btn.dataset.mode);
-    });
-  });
-
   const startTime = performance.now();
 
   /* ── Render loop ─────────────────────────────────────────────── */

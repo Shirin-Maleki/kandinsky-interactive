@@ -1,8 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────
    interactions.js
-   Mouse and touch event handling.  Translates raw pointer events
-   into intents (click, hover, drag, release) and delegates to the
-   audio and physics subsystems.
+   Mouse and touch event handling.  No explicit modes — every circle
+   triggers its own unique magic based on circle.magic.
    ───────────────────────────────────────────────────────────────── */
 
 class InteractionManager {
@@ -13,18 +12,16 @@ class InteractionManager {
     this.audio    = audio;
     this.physics  = physics;
 
-    this.mode      = 'sound'; /* 'sound' | 'gravity' | 'overlay' */
-    this.hovered   = null;
-    this.selected  = null;
-    this.dragged   = null;
+    this.hovered  = null;
+    this.selected = null;
+    this.dragged  = null;
+    this._didDrag = false;
 
     this._overlayTimer = null;
 
     this._bindMouse();
     this._bindTouch();
   }
-
-  setMode(m) { this.mode = m; }
 
   /* ── Mouse ──────────────────────────────────────────────────── */
 
@@ -40,12 +37,12 @@ class InteractionManager {
 
     if (this.dragged) {
       this.physics.moveDrag(this.dragged, x, y);
+      this._didDrag = true;
       return;
     }
 
     const hit = this._hit(x, y);
     if (hit !== this.hovered) {
-      /* Gravity well follows the hovered circle */
       if (hit) this.physics.setWell(hit.id);
       else     this.physics.clearWell();
 
@@ -73,12 +70,12 @@ class InteractionManager {
 
     this.audio.resume();
     this.audio.init().then(() => {
-      if (this.mode !== 'gravity') this.audio.playCircle(hit);
-      if (this.mode === 'gravity') this.physics.impulse(hit);
-      if (this.mode === 'overlay') this._flashOverlay(hit);
+      this.audio.playCircle(hit);
+      this._dispatchMagic(hit);
     });
 
     this.selected = hit;
+    this._didDrag = false;
     this.physics.startDrag(hit, x, y);
     this.dragged = hit;
     this.canvas.style.cursor = 'grabbing';
@@ -86,11 +83,16 @@ class InteractionManager {
   }
 
   _onUp() {
-    if (this.dragged) {
+    if (!this.dragged) return;
+    if (!this._didDrag) {
+      /* Pure click — give a physical upward impulse */
+      this.dragged.dragging = false;
+      this.physics.impulse(this.dragged);
+    } else {
       this.physics.endDrag(this.dragged);
-      this.dragged = null;
-      this.canvas.style.cursor = this.hovered ? 'grab' : 'default';
     }
+    this.dragged = null;
+    this.canvas.style.cursor = this.hovered ? 'grab' : 'default';
   }
 
   _onLeave() {
@@ -121,8 +123,7 @@ class InteractionManager {
     this.audio.resume();
     this.audio.init().then(() => {
       this.audio.playCircle(hit);
-      if (this.mode === 'gravity') this.physics.impulse(hit);
-      if (this.mode === 'overlay') this._flashOverlay(hit);
+      this._dispatchMagic(hit);
     });
 
     this.physics.setWell(hit.id);
@@ -145,6 +146,25 @@ class InteractionManager {
       this.physics.endDrag(this.dragged);
       this.physics.clearWell();
       this.dragged = null;
+    }
+  }
+
+  /* ── Magic dispatch ─────────────────────────────────────────── */
+
+  _dispatchMagic(circle) {
+    switch (circle.magic) {
+      case 'well':
+        this.physics.setTimedWell(circle.id, 2500);
+        break;
+      case 'overlay':
+        this._flashOverlay(circle);
+        break;
+      case 'ripple':
+        if (this.renderer.addRipple) this.renderer.addRipple(circle);
+        break;
+      case 'burst':
+        if (this.renderer.addParticleBurst) this.renderer.addParticleBurst(circle);
+        break;
     }
   }
 
@@ -184,7 +204,6 @@ class InteractionManager {
     };
   }
 
-  /* Iterate top-to-bottom (last rendered = topmost visually) */
   _hit(x, y) {
     for (let i = this.circles.length - 1; i >= 0; i--) {
       const c  = this.circles[i];

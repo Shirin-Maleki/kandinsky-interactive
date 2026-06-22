@@ -85,43 +85,8 @@ header p {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
   width: 100%;
   max-width: 620px;
-}
-
-#mode-selector {
-  display: flex;
-  gap: 0.4rem;
-  background: var(--surface);
-  padding: 0.35rem;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.mode-btn {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.45rem 1.2rem;
-  border-radius: calc(var(--radius) - 2px);
-  cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
-}
-
-.mode-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text);
-}
-
-.mode-btn.active {
-  background: var(--accent);
-  color: #12121E;
-  font-weight: 700;
 }
 
 #info-panel {
