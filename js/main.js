@@ -31,13 +31,31 @@
     });
   });
 
+  const startTime = performance.now();
+
   /* ── Render loop ─────────────────────────────────────────────── */
 
   function frame() {
+    const time = performance.now() - startTime;
+
     physics.tick(circles);
+    renderer.tickLines();
+
+    /* Circle-line intersection: moving circles pluck lines they cross */
+    for (const c of circles) {
+      for (let i = 0; i < renderer.lines.length; i++) {
+        const ln = renderer.lines[i];
+        if (distPointToSeg(c.x, c.y, ln.x1, ln.y1, ln.x2, ln.y2) < c.r) {
+          if (renderer.pluckLine(i, 5) && audio.initialized) {
+            audio.playString(ln.freq);
+          }
+        }
+      }
+    }
 
     renderer.clear();
     renderer.drawMainCircle();
+    renderer.drawBackgroundRays(time);
     renderer.drawLines();
     renderer.drawDecorativeCircles();
 
@@ -46,6 +64,7 @@
         c,
         c === interactions.hovered,
         c === interactions.selected,
+        time,
       );
       renderer.drawLabel(c);
     }

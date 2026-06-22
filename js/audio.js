@@ -71,7 +71,6 @@ class KandinskyAudio {
 
     osc.type = circle.wave;
     osc.frequency.setValueAtTime(circle.freq, t);
-    /* Slight pitch inflection for expressiveness */
     osc.frequency.linearRampToValueAtTime(circle.freq * 1.006, t + 0.08);
     osc.frequency.linearRampToValueAtTime(circle.freq,         t + 0.35);
 
@@ -79,7 +78,6 @@ class KandinskyAudio {
     filt.frequency.value = circle.freq * 2.2;
     filt.Q.value         = 1.8;
 
-    /* ADSR */
     gn.gain.setValueAtTime(0, t);
     gn.gain.linearRampToValueAtTime(0.52, t + 0.025);
     gn.gain.exponentialRampToValueAtTime(0.22, t + 0.45);
@@ -115,6 +113,30 @@ class KandinskyAudio {
     gn.connect(this.masterGain);
     osc.start(t);
     osc.stop(t + 0.35);
+  }
+
+  /* Plucked string sound for structural line interactions.
+     Triangle wave with natural pitch sag mimics a taut string. */
+  playString(freq) {
+    if (!this.initialized) return;
+    const t   = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gn  = this.ctx.createGain();
+
+    osc.type            = 'triangle';
+    osc.frequency.value = freq;
+    /* Slight pitch decay for natural string character */
+    osc.frequency.linearRampToValueAtTime(freq * 0.985, t + 0.6);
+
+    gn.gain.setValueAtTime(0, t);
+    gn.gain.linearRampToValueAtTime(0.16, t + 0.006);
+    gn.gain.exponentialRampToValueAtTime(0.001, t + 1.3);
+
+    osc.connect(gn);
+    gn.connect(this.masterGain);
+    gn.connect(this.reverb);
+    osc.start(t);
+    osc.stop(t + 1.3);
   }
 
   _stop(id) {
