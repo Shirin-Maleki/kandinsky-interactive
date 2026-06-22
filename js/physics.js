@@ -21,9 +21,10 @@ class PhysicsEngine {
     this._vel     = new Map(); /* id → { vx, vy } */
     this._origin  = new Map(); /* id → { x, y }  */
     this._live    = new Set(); /* ids currently animating */
-    this._springK = new Map(); /* id → spring constant (varies by mass) */
-    this._dampK   = new Map(); /* id → damping factor  (varies by mass) */
-    this._wellId  = null;      /* id of the active gravity-well circle   */
+    this._springK   = new Map(); /* id → spring constant (varies by mass)   */
+    this._dampK     = new Map(); /* id → damping factor  (varies by mass)   */
+    this._wellId    = null;      /* id of the active gravity-well circle    */
+    this._wellTimer = null;      /* setTimeout handle for timed wells       */
   }
 
   /* Register a circle and derive its mass-based spring/damping */
@@ -49,6 +50,16 @@ class PhysicsEngine {
 
   setWell(id)  { this._wellId = id; }
   clearWell()  { this._wellId = null; }
+
+  /* Activate a gravity well for durationMs, then auto-clear */
+  setTimedWell(id, durationMs) {
+    this._wellId = id;
+    if (this._wellTimer) clearTimeout(this._wellTimer);
+    this._wellTimer = setTimeout(() => {
+      this._wellId    = null;
+      this._wellTimer = null;
+    }, durationMs);
+  }
 
   /* Call once per animation frame */
   tick(circles) {
@@ -79,6 +90,7 @@ class PhysicsEngine {
     /* ── Spring / boundary / settle loop ─────────────────────── */
     for (const c of circles) {
       if (!this._live.has(c.id)) continue;
+      if (c.dragging) continue; /* moveDrag owns position; skip physics */
 
       const vel    = this._vel.get(c.id);
       const orig   = this._origin.get(c.id);

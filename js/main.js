@@ -31,6 +31,8 @@
 
     physics.tick(circles);
     renderer.tickLines();
+    renderer.tickRipples();
+    renderer.tickParticles();
 
     /* Circle-line intersection: moving circles pluck lines they cross */
     for (const c of circles) {
@@ -60,6 +62,8 @@
       renderer.drawLabel(c);
     }
 
+    renderer.drawRipples();
+    renderer.drawParticles();
     renderer.drawOverlay();
 
     requestAnimationFrame(frame);
