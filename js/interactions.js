@@ -45,11 +45,22 @@ class InteractionManager {
 
     const hit = this._hit(x, y);
     if (hit !== this.hovered) {
+      /* Gravity well follows the hovered circle */
+      if (hit) this.physics.setWell(hit.id);
+      else     this.physics.clearWell();
+
       this.hovered = hit;
       this.canvas.style.cursor = hit ? 'grab' : 'default';
-      if (hit) {
-        /* Lazy-init audio on first hover after user gesture has occurred */
-        if (this.audio.initialized) this.audio.playHover(hit);
+      if (hit && this.audio.initialized) this.audio.playHover(hit);
+    }
+
+    /* Line pluck: mouse within 12px of a structural line */
+    for (let i = 0; i < this.renderer.lines.length; i++) {
+      const ln = this.renderer.lines[i];
+      if (distPointToSeg(x, y, ln.x1, ln.y1, ln.x2, ln.y2) < 12) {
+        if (this.renderer.pluckLine(i) && this.audio.initialized) {
+          this.audio.playString(ln.freq);
+        }
       }
     }
   }
@@ -84,6 +95,7 @@ class InteractionManager {
 
   _onLeave() {
     this.hovered = null;
+    this.physics.clearWell();
     if (this.dragged) {
       this.physics.endDrag(this.dragged);
       this.dragged = null;
@@ -113,6 +125,7 @@ class InteractionManager {
       if (this.mode === 'overlay') this._flashOverlay(hit);
     });
 
+    this.physics.setWell(hit.id);
     this.selected = hit;
     this.physics.startDrag(hit, x, y);
     this.dragged = hit;
@@ -130,6 +143,7 @@ class InteractionManager {
   _onTouchEnd() {
     if (this.dragged) {
       this.physics.endDrag(this.dragged);
+      this.physics.clearWell();
       this.dragged = null;
     }
   }
@@ -152,7 +166,7 @@ class InteractionManager {
         if (alpha <= 0) {
           alpha = 0;
           clearInterval(this._overlayTimer);
-          this._overlayTimer       = null;
+          this._overlayTimer          = null;
           this.renderer.overlayCircle = null;
         }
       }
@@ -170,7 +184,7 @@ class InteractionManager {
     };
   }
 
-  /* Iterate top-to-bottom (last element rendered = topmost visually) */
+  /* Iterate top-to-bottom (last rendered = topmost visually) */
   _hit(x, y) {
     for (let i = this.circles.length - 1; i >= 0; i--) {
       const c  = this.circles[i];
